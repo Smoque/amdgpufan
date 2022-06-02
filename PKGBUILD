@@ -9,6 +9,9 @@ license=('GPL')
 depends=('systemd')
 
 source=('amdgpufan' 'amdgpufan.service' 'amdgpufan.conf')
+sha256sums=('8a0dffacb91331b8de3abe4f4a5bb93a32a994eefb8c55bfc7d6530392fd8a49'
+            '2331d59675fd77dabf785a234ba4a0fe4245a1b10ff901f154523a0d56d4fcf1'
+            'ecd35c14f71264bbec3ec12c1f2261d92f6ea8a244ac6f5a4aa32dbea52638db')
 
 package(){
     mkdir -p ${pkgdir}/usr/sbin
