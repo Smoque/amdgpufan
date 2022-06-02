@@ -1,0 +1,105 @@
+#!/bin/sh
+
+[ $UID -eq 0 ] || { # Check user permissions.
+	echo "Writing to /sys requires root privileges."
+	exit 1
+}
+
+config=/etc/default/amdgpufan
+[ -f $config -a -s  $config ] && source $config || {
+	echo "User settings not found."
+	exit 1
+}
+
+case $sensor in
+	junction) # let's add some degrees to hottest sensor
+		 let min_tmp+=5
+		 sensor=2;;
+	edge)sensor=1;;
+	mem) sensor=3;;
+esac
+
+## System variables ##############################################
+gpuinfo=/sys/kernel/debug/dri/$card/amdgpu_pm_info
+dev_dir=/sys/class/drm/card$card/device
+sys_dir=`ls -d $dev_dir/hwmon/*`
+sys_lvl=${dev_dir}/power_dpm_force_performance_level
+sys_clk=${dev_dir}/pp_od_clk_voltage
+sys_tmp=${sys_dir}/temp${sensor}_input
+sys_pwm=${sys_dir}/pwm1
+sys_fan=${sys_pwm}_enable
+
+## Calculated variables ##########################################
+part=$[step-2] # loops' divider: steps num except first and last
+# Achievable frequencies for gpu & mem:
+mhz=(`awk '/^(M|S)/{gsub("Mhz","");print $3}' $sys_clk | sort -V`)
+max_tmp=$[`cat $sys_dir/temp*_crit | sort -V | head -1`/1000]
+max_pwm=`cat ${sys_pwm}_max`
+min_pwm=`cat ${sys_pwm}_min`
+gap_pwm=$[(max_pwm-min_pwm)/step]
+gap_tmp=$[(max_tmp-min_tmp)/step]
+
+reset(){ # Sudden break.
+	printf "Exiting and s"
+	setmode auto
+	exit 0
+}
+
+setmode(){ # Change as mode as gpu & mem frequency.
+	echo "etting clock & fan mode to '$1'."
+	case $1 in
+		auto)	mode=2;;
+		manual)	mode=1
+				echo m 1 ${mhz[0]} >$sys_clk
+				echo s 1 ${mhz[1]} >$sys_clk
+		;;
+#		*)		mode=0 # max
+	esac
+	echo $mode	>$sys_fan
+	echo $1		>$sys_lvl
+}
+
+main(){ # Whole magic.
+	cur_pwm=`cat $sys_pwm`
+	cur_tmp=$[`cat $sys_tmp`/1000]
+	[[ `cat $sys_fan` -eq 1 ]] || {
+		printf "S"
+		setmode manual
+	}
+	if [[ $cur_tmp -gt $max_tmp ]]; then
+		echo "$cur_tmp°C exceeds critical, set 100% blowing."
+		new_pwm=$max_pwm
+	elif [[ $cur_tmp -le $min_tmp ]]; then
+		new_pwm=$min_pwm
+	else
+		for i in `seq 0 $part`; do
+			[[ $cur_tmp -ge $[min_tmp+gap_tmp*i]     ]] &&
+			[[ $cur_tmp -le $[min_tmp+gap_tmp*(i+1)] ]] && {
+				new_pwm=$[min_pwm+gap_pwm*(i+1)]
+				break
+			}
+		done
+	fi
+	printf "%3d°C @%3d PWM" $cur_tmp $cur_pwm
+	[[ $cur_pwm -ge $[new_pwm-within] ]] &&
+	[[ $cur_pwm -le $[new_pwm+within] ]] &&
+	echo "." || { # Change PWM if differ.
+		for i in `seq 0 $part`; do
+			[[ $cur_tmp -ge $[min_tmp+gap_tmp*i-within] ]] &&
+			[[ $cur_tmp -le $[min_tmp+gap_tmp*i+within] ]] && {
+				echo "."
+				break
+			}
+		done || {
+			printf ", switching to %3d.\n" $new_pwm
+			echo $new_pwm >$sys_pwm
+		}
+	}
+}
+
+trap "reset" SIGINT SIGTERM # Handle signals.
+
+while :; do # Go on!
+	main
+	sleep ${rate}s
+done

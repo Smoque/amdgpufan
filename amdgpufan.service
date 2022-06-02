@@ -1,0 +1,10 @@
+[Unit]
+Description = AMD GPU fan control
+
+[Service]
+ExecStart = /usr/sbin/amdgpufan
+Restart = on-failure
+RestartSec = 5
+
+[Install]
+WantedBy = default.target
