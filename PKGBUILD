@@ -16,8 +16,8 @@ sha256sums=('8a0dffacb91331b8de3abe4f4a5bb93a32a994eefb8c55bfc7d6530392fd8a49'
 package(){
     mkdir -p ${pkgdir}/usr/sbin
     cp ${srcdir}/amdgpufan ${pkgdir}/usr/sbin/
-    mkdir -p ${pkgdir}/usr/lib/systemd/system
-    cp ${srcdir}/amdgpufan.service ${pkgdir}/usr/lib/systemd/system/
+    mkdir -p ${pkgdir}/lib/systemd/system
+    cp ${srcdir}/amdgpufan.service ${pkgdir}/lib/systemd/system/
     mkdir -p ${pkgdir}/etc
     cp ${srcdir}/amdgpufan.conf ${pkgdir}/etc/default/amdgpufan
 }
