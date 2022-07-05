@@ -5,18 +5,24 @@
 	exit 1
 }
 
+## User defaults with absent config #############################
+card=0		# vega rather has number 1
+rate=3		# check frequency
+step=5		# min to max divider
+within=2	# temperature borders and pwm diff tolerance
+min_tmp=45	# no need cooling lower
+sensor=junction	# 'edge' (gpu), 'mem' or 'junction' (hottest one)
+
 config=/etc/default/amdgpufan
-[ -f $config -a -s  $config ] && source $config || {
-	echo "User settings not found."
-	exit 1
-}
+[ -f $config -a -s $config ] && source $config ||
+echo "User settings not found, using default values."
 
 case $sensor in
 	junction) # let's add some degrees to hottest sensor
-		 let min_tmp+=5
-		 sensor=2;;
-	edge)sensor=1;;
-	mem) sensor=3;;
+		let min_tmp+=5
+		sensor=2;;
+	edge)	sensor=1;;
+	mem)	sensor=3;;
 esac
 
 ## System variables ##############################################
