@@ -5,7 +5,7 @@
 	exit 1
 }
 
-## User defaults with absent config #############################
+## User defaults when config absent #############################
 card=0		# vega rather has number 1
 rate=3		# check frequency
 step=5		# min to max divider
